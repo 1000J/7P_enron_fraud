@@ -245,4 +245,4 @@ features_train, features_test, labels_train, labels_test = \
 
 
 
-dump_classifier_and_data(clf, my_dataset, features_list)
+#dump_classifier_and_data(clf, my_dataset, features_list)
