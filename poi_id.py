@@ -112,12 +112,6 @@ labels, features = targetFeatureSplit(data)
 
 from sklearn.model_selection import StratifiedShuffleSplit
 
-sss = StratifiedShuffleSplit(n_splits=1,test_size=44,random_state=42)
-
-for train, test in sss.split(features,labels):
-    print(len(train),len(test))
-    #print train
-    #print test
 
 #features_train = 1
 
@@ -130,6 +124,7 @@ for train, test in sss.split(features,labels):
 ### http://scikit-learn.org/stable/modules/pipeline.html
 
 # Provided to give you a starting point. Try a variety of classifiers.
+from sklearn.feature_selection import SelectKBest
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.naive_bayes import GaussianNB
 from sklearn.ensemble import AdaBoostClassifier
@@ -223,11 +218,6 @@ parameters = {"kbest__k": [1, 2, 3, 4, 5, 6, 8, 10, 15, 20],
 #              'abc__random_state': [42]}
 
 runGSCV(pipeline, parameters, best_cv, features_list)
-
-
-
-
-
 
 
 
