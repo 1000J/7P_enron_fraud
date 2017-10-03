@@ -55,6 +55,7 @@ with open("final_project_dataset.pkl", "r") as data_file:
 ### Task 2: Remove outliers
 data_dict.pop('TOTAL',0)
 data_dict.pop('THE TRAVEL AGENCY IN THE PARK',0)
+#data_dict.pop('LOCKHART, EUGENE E',0)
 
 #for key in data_dict:
 #    print key, data_dict[key]['poi']
@@ -68,7 +69,7 @@ my_dataset = data_dict
 # highlighted out because of space it takes
 plot_scatter(my_dataset, features_list)
 
-# add two new engineered features 
+# add new engineered features 
 for key in my_dataset:
 #    print key
     if (my_dataset[key]['long_term_incentive']=='NaN' or \
@@ -87,6 +88,42 @@ for key in my_dataset:
             float(my_dataset[key]['restricted_stock'])/ \
             float(my_dataset[key]['total_stock_value'])
 
+    if (my_dataset[key]['bonus']=='NaN' or \
+        my_dataset[key]['total_payments']=='NaN'):
+        my_dataset[key]['ratio_bonus_to_total'] = 0
+    else:
+        my_dataset[key]['ratio_bonus_to_total'] = \
+            float(my_dataset[key]['bonus'])/ \
+            float(my_dataset[key]['total_payments'])
+
+    if (my_dataset[key]['from_poi_to_this_person']=='NaN' or \
+        my_dataset[key]['from_this_person_to_poi']=='NaN' or \
+        my_dataset[key]['from_this_person_to_poi']==0):
+        my_dataset[key]['ratio_from_poi_to_to_poi'] = 0
+    else:
+        my_dataset[key]['ratio_from_poi_to_to_poi'] = \
+            float(my_dataset[key]['from_poi_to_this_person'])/ \
+            float(my_dataset[key]['from_this_person_to_poi'])
+
+    if (my_dataset[key]['from_poi_to_this_person']=='NaN' or \
+        my_dataset[key]['to_messages']=='NaN' or \
+        my_dataset[key]['to_messages']==0):
+        my_dataset[key]['ratio_from_poi_to_total'] = 0
+    else:
+        my_dataset[key]['ratio_from_poi_to_total'] = \
+            float(my_dataset[key]['from_poi_to_this_person'])/ \
+            float(my_dataset[key]['to_messages'])
+
+    if (my_dataset[key]['from_this_person_to_poi']=='NaN' or \
+        my_dataset[key]['from_messages']=='NaN' or \
+        my_dataset[key]['from_messages']==0):
+        my_dataset[key]['ratio_to_poi_to_total'] = 0
+    else:
+        my_dataset[key]['ratio_to_poi_to_total'] = \
+            float(my_dataset[key]['from_this_person_to_poi'])/ \
+            float(my_dataset[key]['from_messages'])
+
+
 
 # update features_list to include the new engineered features
 features_list = ['poi','salary','deferral_payments', 
@@ -98,7 +135,8 @@ features_list = ['poi','salary','deferral_payments',
                  'to_messages', 'from_poi_to_this_person', 'from_messages', 
                  'from_this_person_to_poi', 'shared_receipt_with_poi',
                  'ratio_lt_incentive_to_tot_payments',
-                 'ratio_rstock_to_tstock']
+                 'ratio_rstock_to_tstock','ratio_bonus_to_total',
+                 'ratio_from_poi_to_to_poi','ratio_from_poi_to_total']
 
 
 ### Extract features and labels from dataset for local testing
@@ -133,8 +171,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.grid_search import GridSearchCV
 from sklearn.metrics import accuracy_score
 from sklearn.cross_validation import StratifiedShuffleSplit
-
-
+from sklearn.linear_model import LogisticRegression
 
 # function that runs GridSearchCV
 def runGSCV(pipeline, parameters, cv, flist):
@@ -175,13 +212,11 @@ def runGSCV(pipeline, parameters, cv, flist):
 ##############################################################
 print '*** GridSearchCV with StratifiedShuffleSplit using DTC & SelectKBest'
 
-#best_cv=StratifiedShuffleSplit(labels,n_iter=100,random_state=42, test_size=0.2)
 best_cv=StratifiedShuffleSplit(labels,n_iter=100,random_state=42, test_size=0.3)
 pipeline = Pipeline([('kbest', SelectKBest()),('dtc', DecisionTreeClassifier())])
-parameters = {"kbest__k": [1, 2, 3, 4, 5, 6, 8, 10, 15, 20],
+parameters = {"kbest__k": [1, 2, 10],
               'dtc__criterion': ['gini', 'entropy'], 
-              'dtc__max_depth': [None, 1, 2, 5, 10, 20, 50],
-              'dtc__max_features': [None, 'auto', 'log2']}
+              'dtc__splitter':['random']}
 # fake parameter to run fast
 #parameters = {"kbest__k": [1, 2],
 #              'dtc__criterion': ['gini'], 
@@ -194,7 +229,6 @@ runGSCV(pipeline, parameters, best_cv, features_list)
 ##############################################################
 print '*** GridSearchCV with StratifiedShuffleSplit using GNB & SelectKBest'
 
-#best_cv=StratifiedShuffleSplit(labels,n_iter=100,random_state=42, test_size=0.2)
 best_cv=StratifiedShuffleSplit(labels,n_iter=100,random_state=42, test_size=0.3)
 pipeline = Pipeline([('kbest', SelectKBest()),('gnb', GaussianNB())])
 parameters = {"kbest__k": [1, 2, 3, 4, 5, 6, 8, 10, 15, 20]}
@@ -204,23 +238,29 @@ runGSCV(pipeline, parameters, best_cv, features_list)
 ##############################################################
 print '*** GridSearchCV with StratifiedShuffleSplit using AdaBoost & SelectKBest'
 
-#best_cv=StratifiedShuffleSplit(labels,n_iter=100,random_state=42, test_size=0.2)
 best_cv=StratifiedShuffleSplit(labels,n_iter=100,random_state=42, test_size=0.3)
 pipeline = Pipeline([('kbest', SelectKBest()),('abc', AdaBoostClassifier())])
-parameters = {"kbest__k": [1, 2, 3, 4, 5, 6, 8, 10, 15, 20],
-              'abc__n_estimators': [5,25,50,100,200], 
+parameters = {"kbest__k": [1, 2, 4, 6, 10, 20],
+              'abc__n_estimators': [10,100,200], 
               'abc__algorithm': ['SAMME', 'SAMME.R'],
               'abc__random_state': [42]}
 # fake parameter to run fast
 #parameters = {"kbest__k": [10],
-#              'abc__n_estimators': [100,], 
+#              'abc__n_estimators': [100], 
 #              'abc__algorithm': ['SAMME'],
 #              'abc__random_state': [42]}
 
 runGSCV(pipeline, parameters, best_cv, features_list)
 
+##############################################################
+print '*** GridSearchCV with StratifiedShuffleSplit using LogisticRegression & SelectKBest'
 
+best_cv=StratifiedShuffleSplit(labels,n_iter=100,random_state=42, test_size=0.3)
+pipeline = Pipeline([('kbest', SelectKBest()),('lr', LogisticRegression())])
+parameters = {"kbest__k": [1, 2, 3, 4, 5, 6, 8, 10, 15, 20],
+              'lr__C': [1.0,2.0]}
 
+runGSCV(pipeline, parameters, best_cv, features_list)
 
 
 ### Task 5: Tune your classifier to achieve better than .3 precision and recall 
